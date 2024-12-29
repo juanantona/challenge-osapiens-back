@@ -38,6 +38,7 @@ export class TaskRunner {
       task.resultId = result.resultId!;
       task.status = TaskStatus.Completed;
       task.progress = null;
+      task.output = result.data;
       await this.taskRepository.save(task);
     } catch (error: any) {
       console.error(`Error running job ${task.taskType} for task ${task.taskId}:`, error);

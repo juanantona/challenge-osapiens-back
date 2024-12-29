@@ -30,4 +30,7 @@ export class Task {
 
   @ManyToOne(() => Workflow, workflow => workflow.tasks)
   workflow!: Workflow;
+
+  @Column()
+  output?: string;
 }
