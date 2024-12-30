@@ -83,5 +83,40 @@ describe('ReportGenerationJob', () => {
         `Running reporting for all completed task belonging to ${reportingTask.workflow.workflowId} workflow...`
       );
     });
+
+    it('Should run the job and return the report', async () => {
+      const reportingTask = getQueuedTask({});
+      const completedTaskOne = getCompletedTask({ id: '1', type: 'polygonArea', output: '1' });
+      const completedTaskTwo = getCompletedTask({
+        id: '2',
+        type: 'dataAnalysis',
+        output: 'Brazil',
+      });
+      findByTasksSpy.mockResolvedValueOnce([completedTaskOne, completedTaskTwo]);
+
+      const job = new ReportGenerationJob(taskRepository);
+      const result = await job.run(reportingTask);
+
+      const mappedTasks = [
+        {
+          taskId: completedTaskOne.taskId,
+          type: completedTaskOne.taskType,
+          output: completedTaskOne.output,
+        },
+        {
+          taskId: completedTaskTwo.taskId,
+          type: completedTaskTwo.taskType,
+          output: completedTaskTwo.output,
+        },
+      ];
+
+      expect(result).toEqual({
+        workflowId: reportingTask.workflow.workflowId,
+        tasks: mappedTasks,
+        finalReport: `Report for workflow ${reportingTask.workflow.workflowId}: ${JSON.stringify(
+          mappedTasks
+        )}`,
+      });
+    });
   });
 });
