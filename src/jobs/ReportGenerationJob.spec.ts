@@ -5,20 +5,32 @@ import { Workflow } from '../models/Workflow';
 import { TaskStatus } from '../workers/taskRunner';
 
 const getTask = ({
-  id = 'task-id',
-  status = TaskStatus.Queued,
+  id = '1',
+  status,
+  type = 'polygonArea',
+  output,
 }: {
+  status: TaskStatus;
   id?: string;
-  status?: TaskStatus;
+  type?: string;
+  output?: string;
 }) => {
   const task = new Task();
   const workflow = new Workflow();
   workflow.workflowId = 'workflow-id';
-  task.taskId = id;
+  task.taskId = `task-id-${id}`;
   task.workflow = workflow;
   task.status = status;
+  task.taskType = type;
+  task.output = output;
   return task;
 };
+
+const getQueuedTask = ({ id, type, output }: { id?: string; type?: string; output?: string }) =>
+  getTask({ id, status: TaskStatus.Queued, type, output });
+
+const getCompletedTask = ({ id, type, output }: { id?: string; type?: string; output?: string }) =>
+  getTask({ id, status: TaskStatus.Completed, type, output });
 
 describe('ReportGenerationJob', () => {
   let logSpy: jest.SpyInstance;
@@ -36,7 +48,7 @@ describe('ReportGenerationJob', () => {
 
   describe('When the current task is the only task in the workflow', () => {
     it('Should throw an error', async () => {
-      const reportingTask = getTask({});
+      const reportingTask = getQueuedTask({});
       findByTasksSpy.mockResolvedValueOnce([]);
 
       const job = new ReportGenerationJob(taskRepository);
@@ -45,10 +57,10 @@ describe('ReportGenerationJob', () => {
     });
   });
 
-  describe('When there are at least one more queued or failed tasks in the workflow', () => {
+  describe('When there are at least one more queued tasks in the workflow', () => {
     it('Should not run the job', async () => {
-      const reportingTask = getTask({});
-      const queuedTask = getTask({ status: TaskStatus.Queued });
+      const reportingTask = getQueuedTask({});
+      const queuedTask = getQueuedTask({});
       findByTasksSpy.mockResolvedValueOnce([queuedTask]);
 
       const job = new ReportGenerationJob(taskRepository);
@@ -60,8 +72,8 @@ describe('ReportGenerationJob', () => {
 
   describe('When the rest of the task in the workflow are completed', () => {
     it('Should log the task Id at job starting', async () => {
-      const reportingTask = getTask({});
-      const completedTask = getTask({ status: TaskStatus.Completed });
+      const reportingTask = getQueuedTask({});
+      const completedTask = getCompletedTask({});
       findByTasksSpy.mockResolvedValueOnce([completedTask]);
 
       const job = new ReportGenerationJob(taskRepository);
