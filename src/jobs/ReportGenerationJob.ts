@@ -5,11 +5,11 @@ import { TaskStatus } from '../workers/taskRunner';
 
 type Report = {
   workflowId: string;
-  tasks: MappedTask[];
+  tasks: MappedTaskForReporting[];
   finalReport: string;
 };
 
-type MappedTask = {
+type MappedTaskForReporting = {
   taskId: string;
   type: string;
   output?: string;
@@ -21,30 +21,45 @@ export class ReportGenerationJob implements Job {
 
   async run(task: Task): Promise<Report | Record<'taskShouldWait', boolean> | Error> {
     const workflowId = task.workflow.workflowId;
-    const tasks = await this.taskRepository.findBy({
-      taskId: Not(task.taskId),
-      workflow: { workflowId },
-    });
+    const tasks = await this.getWorflowTasks(task, workflowId);
 
     if (tasks.length === 0) throw new Error('No previously tasks to report');
 
-    const allCompleted = tasks.every(t => t.status === TaskStatus.Completed);
-    const anyFailed = tasks.some(t => t.status === TaskStatus.Failed);
-
-    if (!allCompleted && !anyFailed) return { taskShouldWait: true };
+    const allTasksExecuted = tasks.every(this.isExecuted);
+    if (!allTasksExecuted) return { taskShouldWait: true };
 
     console.log(
-      `Running reporting for all completed task belonging to ${task.workflow.workflowId} workflow...`
+      `Running reporting for all executed task belonging to ${task.workflow.workflowId} workflow...`
     );
 
-    const mappedTasks = tasks.map(t => {
-      const mappedTask: MappedTask = { taskId: t.taskId, type: t.taskType };
-      if (t.status === TaskStatus.Completed) mappedTask.output = t.output;
-      if (t.status === TaskStatus.Failed) mappedTask.isFailed = true;
-      return mappedTask;
-    });
-
+    const mappedTasks = tasks.map(this.mapTaskForReporting.bind(this));
     const finalReport = `Report for workflow ${workflowId}: ${JSON.stringify(mappedTasks)}`;
     return { workflowId, tasks: mappedTasks, finalReport };
+  }
+
+  private mapTaskForReporting(task: Task) {
+    const mappedTask: MappedTaskForReporting = { taskId: task.taskId, type: task.taskType };
+    if (this.isCompleted(task)) mappedTask.output = task.output;
+    if (this.isFailed(task)) mappedTask.isFailed = true;
+    return mappedTask;
+  }
+
+  private async getWorflowTasks(task: Task, workflowId: string) {
+    return await this.taskRepository.findBy({
+      taskId: Not(task.taskId),
+      workflow: { workflowId },
+    });
+  }
+
+  private isExecuted(task: Task): boolean {
+    return task.status !== TaskStatus.Queued;
+  }
+
+  private isCompleted(task: Task): boolean {
+    return task.status === TaskStatus.Completed;
+  }
+
+  private isFailed(task: Task): boolean {
+    return task.status === TaskStatus.Failed;
   }
 }

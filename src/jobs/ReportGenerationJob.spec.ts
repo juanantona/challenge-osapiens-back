@@ -83,7 +83,7 @@ describe('ReportGenerationJob', () => {
       await job.run(reportingTask);
 
       expect(logSpy).toHaveBeenCalledWith(
-        `Running reporting for all completed task belonging to ${reportingTask.workflow.workflowId} workflow...`
+        `Running reporting for all executed task belonging to ${reportingTask.workflow.workflowId} workflow...`
       );
     });
 
