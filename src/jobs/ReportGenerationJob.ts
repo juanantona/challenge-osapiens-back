@@ -21,7 +21,8 @@ export class ReportGenerationJob implements Job {
 
   async run(task: Task): Promise<Report | Record<'taskShouldWait', boolean> | Error> {
     const workflowId = task.workflow.workflowId;
-    const tasks = await this.getWorflowTasks(task, workflowId);
+    const workflowTasks = await this.getTasksByWorkflowId(workflowId);
+    const tasks = this.getTasksWithoutReportingOne(workflowTasks, task);
 
     if (tasks.length === 0) throw new Error('No previously tasks to report');
 
@@ -37,6 +38,10 @@ export class ReportGenerationJob implements Job {
     return { workflowId, tasks: mappedTasks, finalReport };
   }
 
+  private getTasksWithoutReportingOne(workflowTasks: Task[], reportingTask: Task) {
+    return workflowTasks.filter(t => t.taskId !== reportingTask.taskId);
+  }
+
   private mapTaskForReporting(task: Task) {
     const mappedTask: MappedTaskForReporting = { taskId: task.taskId, type: task.taskType };
     if (this.isCompleted(task)) mappedTask.output = task.output;
@@ -44,9 +49,8 @@ export class ReportGenerationJob implements Job {
     return mappedTask;
   }
 
-  private async getWorflowTasks(task: Task, workflowId: string) {
+  private async getTasksByWorkflowId(workflowId: string) {
     return await this.taskRepository.findBy({
-      taskId: Not(task.taskId),
       workflow: { workflowId },
     });
   }

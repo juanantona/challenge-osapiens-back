@@ -52,7 +52,7 @@ describe('ReportGenerationJob', () => {
   describe('When the current task is the only task in the workflow', () => {
     it('Should throw an error', async () => {
       const reportingTask = getQueuedTask({});
-      findByTasksSpy.mockResolvedValueOnce([]);
+      findByTasksSpy.mockResolvedValueOnce([reportingTask]);
 
       const job = new ReportGenerationJob(taskRepository);
 
@@ -62,9 +62,9 @@ describe('ReportGenerationJob', () => {
 
   describe('When there are at least one more queued tasks in the workflow', () => {
     it('Should not run the job', async () => {
-      const reportingTask = getQueuedTask({});
-      const queuedTask = getQueuedTask({});
-      findByTasksSpy.mockResolvedValueOnce([queuedTask]);
+      const reportingTask = getQueuedTask({ id: '1' });
+      const queuedTask = getQueuedTask({ id: '2' });
+      findByTasksSpy.mockResolvedValueOnce([reportingTask, queuedTask]);
 
       const job = new ReportGenerationJob(taskRepository);
       const result = await job.run(reportingTask);
@@ -75,9 +75,9 @@ describe('ReportGenerationJob', () => {
 
   describe('When the rest of the task in the workflow are completed', () => {
     it('Should log the task Id at job starting', async () => {
-      const reportingTask = getQueuedTask({});
-      const completedTask = getCompletedTask({});
-      findByTasksSpy.mockResolvedValueOnce([completedTask]);
+      const reportingTask = getQueuedTask({ id: '1' });
+      const completedTask = getCompletedTask({ id: '2' });
+      findByTasksSpy.mockResolvedValueOnce([reportingTask, completedTask]);
 
       const job = new ReportGenerationJob(taskRepository);
       await job.run(reportingTask);
@@ -88,14 +88,14 @@ describe('ReportGenerationJob', () => {
     });
 
     it('Should run the job and return the report', async () => {
-      const reportingTask = getQueuedTask({});
-      const completedTaskOne = getCompletedTask({ id: '1', type: 'polygonArea', output: '1' });
+      const reportingTask = getQueuedTask({ id: '1' });
+      const completedTaskOne = getCompletedTask({ id: '2', type: 'polygonArea', output: '1' });
       const completedTaskTwo = getCompletedTask({
-        id: '2',
+        id: '3',
         type: 'dataAnalysis',
         output: 'Brazil',
       });
-      findByTasksSpy.mockResolvedValueOnce([completedTaskOne, completedTaskTwo]);
+      findByTasksSpy.mockResolvedValueOnce([reportingTask, completedTaskOne, completedTaskTwo]);
 
       const job = new ReportGenerationJob(taskRepository);
       const result = await job.run(reportingTask);
@@ -125,10 +125,10 @@ describe('ReportGenerationJob', () => {
 
   describe('When there are at least one failed tasks in the workflow', () => {
     it('Should include error information in the report', async () => {
-      const reportingTask = getQueuedTask({});
-      const completedTask = getCompletedTask({});
-      const failedTask = getFailedTask({});
-      findByTasksSpy.mockResolvedValueOnce([completedTask, failedTask]);
+      const reportingTask = getQueuedTask({ id: '1' });
+      const completedTask = getCompletedTask({ id: '2' });
+      const failedTask = getFailedTask({ id: '3' });
+      findByTasksSpy.mockResolvedValueOnce([reportingTask, completedTask, failedTask]);
 
       const job = new ReportGenerationJob(taskRepository);
       const result = await job.run(reportingTask);
