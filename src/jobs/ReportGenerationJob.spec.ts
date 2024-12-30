@@ -32,6 +32,9 @@ const getQueuedTask = ({ id, type, output }: { id?: string; type?: string; outpu
 const getCompletedTask = ({ id, type, output }: { id?: string; type?: string; output?: string }) =>
   getTask({ id, status: TaskStatus.Completed, type, output });
 
+const getFailedTask = ({ id, type, output }: { id?: string; type?: string; output?: string }) =>
+  getTask({ id, status: TaskStatus.Failed, type, output });
+
 describe('ReportGenerationJob', () => {
   let logSpy: jest.SpyInstance;
   let findByTasksSpy: jest.SpyInstance;
@@ -107,6 +110,39 @@ describe('ReportGenerationJob', () => {
           taskId: completedTaskTwo.taskId,
           type: completedTaskTwo.taskType,
           output: completedTaskTwo.output,
+        },
+      ];
+
+      expect(result).toEqual({
+        workflowId: reportingTask.workflow.workflowId,
+        tasks: mappedTasks,
+        finalReport: `Report for workflow ${reportingTask.workflow.workflowId}: ${JSON.stringify(
+          mappedTasks
+        )}`,
+      });
+    });
+  });
+
+  describe('When there are at least one failed tasks in the workflow', () => {
+    it('Should include error information in the report', async () => {
+      const reportingTask = getQueuedTask({});
+      const completedTask = getCompletedTask({});
+      const failedTask = getFailedTask({});
+      findByTasksSpy.mockResolvedValueOnce([completedTask, failedTask]);
+
+      const job = new ReportGenerationJob(taskRepository);
+      const result = await job.run(reportingTask);
+
+      const mappedTasks = [
+        {
+          taskId: completedTask.taskId,
+          type: completedTask.taskType,
+          output: completedTask.output,
+        },
+        {
+          taskId: failedTask.taskId,
+          type: failedTask.taskType,
+          isFailed: true,
         },
       ];
 
