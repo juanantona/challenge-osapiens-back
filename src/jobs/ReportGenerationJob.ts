@@ -32,6 +32,8 @@ export class ReportGenerationJob implements Job {
       `Running reporting for all completed task belonging to ${task.workflow.workflowId} workflow...`
     );
 
-    return;
+    const mappedTasks = tasks.map(t => ({ taskId: t.taskId, type: t.taskType, output: t.output }));
+    const finalReport = `Report for workflow ${workflowId}: ${JSON.stringify(mappedTasks)}`;
+    return { workflowId, tasks: mappedTasks, finalReport };
   }
 }
