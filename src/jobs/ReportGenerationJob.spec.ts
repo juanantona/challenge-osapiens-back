@@ -4,13 +4,30 @@ import { Task } from '../models/Task';
 import { Workflow } from '../models/Workflow';
 import { TaskStatus } from '../workers/taskRunner';
 
+const getTask = ({
+  id = 'task-id',
+  status = TaskStatus.Queued,
+}: {
+  id?: string;
+  status?: TaskStatus;
+}) => {
+  const task = new Task();
+  const workflow = new Workflow();
+  workflow.workflowId = 'workflow-id';
+  task.taskId = id;
+  task.workflow = workflow;
+  task.status = status;
+  return task;
+};
+
 describe('ReportGenerationJob', () => {
   let logSpy: jest.SpyInstance;
+  let findByTasksSpy: jest.SpyInstance;
   const taskRepository = AppDataSource.getRepository(Task);
-  const findByTasksSpy = jest.spyOn(taskRepository, 'findBy');
 
   beforeEach(() => {
     logSpy = jest.spyOn(global.console, 'log');
+    findByTasksSpy = jest.spyOn(taskRepository, 'findBy');
   });
 
   afterEach(() => {
@@ -19,54 +36,39 @@ describe('ReportGenerationJob', () => {
 
   describe('When the current task is the only task in the workflow', () => {
     it('Should throw an error', async () => {
-      const workflow = new Workflow();
-      const currentTask = new Task();
-      currentTask.taskId = 'task-id';
-      currentTask.workflow = workflow;
-      currentTask.status = TaskStatus.Queued;
+      const reportingTask = getTask({});
       findByTasksSpy.mockResolvedValueOnce([]);
 
       const job = new ReportGenerationJob(taskRepository);
 
-      await expect(job.run(currentTask)).rejects.toThrow('No previously tasks to report');
+      await expect(job.run(reportingTask)).rejects.toThrow('No previously tasks to report');
     });
   });
 
   describe('When there are at least one more queued or failed tasks in the workflow', () => {
     it('Should not run the job', async () => {
-      const workflow = new Workflow();
-      const currentTask = new Task();
-      currentTask.workflow = workflow;
-      currentTask.status = TaskStatus.Queued;
-      const task = new Task();
-      task.workflow = workflow;
-      task.status = TaskStatus.Queued;
-      findByTasksSpy.mockResolvedValueOnce([task]);
+      const reportingTask = getTask({});
+      const queuedTask = getTask({ status: TaskStatus.Queued });
+      findByTasksSpy.mockResolvedValueOnce([queuedTask]);
 
       const job = new ReportGenerationJob(taskRepository);
-      const result = await job.run(currentTask);
+      const result = await job.run(reportingTask);
 
       expect(result).toEqual({ taskShouldWait: true });
     });
   });
 
   describe('When the rest of the task in the workflow are completed', () => {
-    it('Should run the job and log the task Id at job starting', async () => {
-      const workflow = new Workflow();
-      workflow.workflowId = 'workflow-id';
-      const currentTask = new Task();
-      currentTask.workflow = workflow;
-      currentTask.status = TaskStatus.Queued;
-      const task = new Task();
-      task.workflow = workflow;
-      task.status = TaskStatus.Completed;
-      findByTasksSpy.mockResolvedValueOnce([task]);
+    it('Should log the task Id at job starting', async () => {
+      const reportingTask = getTask({});
+      const completedTask = getTask({ status: TaskStatus.Completed });
+      findByTasksSpy.mockResolvedValueOnce([completedTask]);
 
       const job = new ReportGenerationJob(taskRepository);
-      await job.run(currentTask);
+      await job.run(reportingTask);
 
       expect(logSpy).toHaveBeenCalledWith(
-        `Running reporting for all completed task belonging to ${currentTask.workflow.workflowId} workflow...`
+        `Running reporting for all completed task belonging to ${reportingTask.workflow.workflowId} workflow...`
       );
     });
   });
