@@ -12,6 +12,14 @@ export enum TaskStatus {
   Failed = 'failed',
 }
 
+type TaskForWorkFlowResult = {
+  taskId: string;
+  type: string;
+  output?: string;
+  isFailed?: boolean;
+  isPending?: boolean;
+};
+
 export class TaskRunner {
   constructor(private taskRepository: Repository<Task>) {}
 
@@ -69,17 +77,15 @@ export class TaskRunner {
     });
 
     if (currentWorkflow) {
-      const allCompleted = currentWorkflow.tasks.every(t => t.status === TaskStatus.Completed);
-      const anyFailed = currentWorkflow.tasks.some(t => t.status === TaskStatus.Failed);
+      const allCompleted = currentWorkflow.tasks.every(this.isCompleted.bind(this));
+      const anyFailed = currentWorkflow.tasks.some(this.isFailed.bind(this));
 
-      if (anyFailed) {
-        currentWorkflow.status = WorkflowStatus.Failed;
-      } else if (allCompleted) {
-        currentWorkflow.status = WorkflowStatus.Completed;
-      } else {
-        currentWorkflow.status = WorkflowStatus.InProgress;
-      }
+      currentWorkflow.status = WorkflowStatus.InProgress;
+      if (anyFailed) currentWorkflow.status = WorkflowStatus.Failed;
+      if (allCompleted) currentWorkflow.status = WorkflowStatus.Completed;
 
+      const isFinished = anyFailed || allCompleted;
+      if (isFinished) currentWorkflow.finalResult = this.getFinalResult(currentWorkflow.tasks);
       await workflowRepository.save(currentWorkflow);
     }
   }
@@ -95,5 +101,26 @@ export class TaskRunner {
 
   private isCompleted(task: Task): boolean {
     return task.status === TaskStatus.Completed;
+  }
+
+  private isFailed(task: Task): boolean {
+    return task.status === TaskStatus.Failed;
+  }
+
+  private isPending(task: Task): boolean {
+    return task.status === TaskStatus.InProgress || task.status === TaskStatus.Queued;
+  }
+
+  private getFinalResult(tasks: Task[]): string {
+    const mappedTasks = tasks.map(this.mapTaskForFinalResult.bind(this));
+    return `Resume of the workflow execution: ${JSON.stringify(mappedTasks)}`;
+  }
+
+  private mapTaskForFinalResult(task: Task) {
+    const mappedTask: TaskForWorkFlowResult = { taskId: task.taskId, type: task.taskType };
+    if (this.isCompleted(task)) mappedTask.output = task.output;
+    if (this.isFailed(task)) mappedTask.isFailed = true;
+    if (this.isPending(task)) mappedTask.isPending = true;
+    return mappedTask;
   }
 }
