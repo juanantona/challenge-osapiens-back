@@ -36,6 +36,12 @@ export class TaskRunner {
       console.log(`Starting job ${task.taskType} for task ${task.taskId}...`);
       const resultRepository = this.taskRepository.manager.getRepository(Result);
       const taskResult = await job.run(task);
+      if (taskResult?.taskShouldWait) {
+        task.status = TaskStatus.Queued;
+        task.progress = 'waiting...';
+        await this.taskRepository.save(task);
+        return;
+      }
       console.log(`Job ${task.taskType} for task ${task.taskId} completed successfully.`);
       const result = new Result();
       result.taskId = task.taskId!;
