@@ -7,10 +7,13 @@ export async function taskWorker() {
   const taskRunner = new TaskRunner(taskRepository);
 
   while (true) {
-    const task = await taskRepository.findOne({
-      where: { status: TaskStatus.Queued },
-      relations: ['workflow', 'dependency'], // Ensure workflow and dependency are loaded
-    });
+    const task = await taskRepository
+      .createQueryBuilder('task')
+      .leftJoinAndSelect('task.workflow', 'workflow')
+      .leftJoinAndSelect('task.dependency', 'dependency')
+      .where('task.status = :status', { status: TaskStatus.Queued })
+      .orderBy('RANDOM()')
+      .getOne();
 
     if (task) {
       try {
