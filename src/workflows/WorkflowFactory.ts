@@ -15,6 +15,7 @@ export enum WorkflowStatus {
 interface WorkflowStep {
   taskType: string;
   stepNumber: number;
+  dependsOnStep: number;
 }
 
 interface WorkflowDefinition {
@@ -57,6 +58,14 @@ export class WorkflowFactory {
       task.stepNumber = step.stepNumber;
       task.workflow = savedWorkflow;
       return task;
+    });
+
+    workflowDef.steps.forEach(step => {
+      if (step.dependsOnStep) {
+        const taskWithDependency = tasks.find(task => task.stepNumber === step.stepNumber);
+        const dependency = tasks.find(task => task.stepNumber === step.dependsOnStep);
+        taskWithDependency!.dependency = dependency;
+      }
     });
 
     await taskRepository.save(tasks);
