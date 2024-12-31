@@ -34,7 +34,7 @@ export class Task {
   @Column({ nullable: true })
   output?: string;
 
-  @Column()
+  @Column({ nullable: true })
   input?: string;
 
   // Reference to another task as a single dependency
