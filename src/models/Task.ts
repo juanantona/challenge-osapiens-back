@@ -34,6 +34,9 @@ export class Task {
   @Column()
   output?: string;
 
+  @Column()
+  input?: string;
+
   // Reference to another task as a single dependency
   @ManyToOne(() => Task, { nullable: true })
   dependency?: Task;

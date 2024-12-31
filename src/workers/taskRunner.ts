@@ -21,6 +21,12 @@ export class TaskRunner {
    * @throws If the job fails, it rethrows the error.
    */
   async run(task: Task): Promise<void> {
+    const dependantTask = await this.getDependantTask(task);
+    if (dependantTask) {
+      if (this.isCompleted(dependantTask)) task.input = dependantTask.output;
+      else return;
+    }
+
     task.status = TaskStatus.InProgress;
     task.progress = 'starting job...';
     await this.taskRepository.save(task);
@@ -70,5 +76,18 @@ export class TaskRunner {
 
       await workflowRepository.save(currentWorkflow);
     }
+  }
+
+  private async getDependantTask(task: Task): Promise<Task | null> {
+    if (!task.dependency) return null;
+    const dependantTask = await this.taskRepository.findOne({
+      where: { taskId: task.dependency.taskId },
+      relations: ['workflow'],
+    });
+    return dependantTask;
+  }
+
+  private isCompleted(task: Task): boolean {
+    return task.status === TaskStatus.Completed;
   }
 }
