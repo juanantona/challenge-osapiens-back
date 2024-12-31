@@ -5,30 +5,14 @@ import { Workflow } from '../models/Workflow';
 import { TaskStatus } from '../workers/taskRunner';
 import { Result } from '../models/Result';
 
-const geoJson = {
-  type: 'Polygon',
-  coordinates: [
-    [
-      [-46.159527846351466, -16.048997734633218],
-      [-46.76235118226248, -16.048997734633218],
-      [-46.76235118226248, -16.695249531930827],
-      [-46.159527846351466, -16.695249531930827],
-      [-46.159527846351466, -16.048997734633218],
-    ],
-  ],
-};
-
-const getTask = ({
-  id = '1',
-  status,
-  type = 'analysis',
-  output,
-}: {
-  status: TaskStatus;
+type MockedTask = {
   id?: string;
+  status: TaskStatus;
   type?: string;
   output?: string;
-}) => {
+};
+
+const getTask = ({ id = '1', status, type = 'notification', output }: MockedTask) => {
   const task = new Task();
   const workflow = new Workflow();
   workflow.workflowId = 'workflow-id';
@@ -37,21 +21,19 @@ const getTask = ({
   task.status = status;
   task.taskType = type;
   task.output = output;
-  task.geoJson = JSON.stringify(geoJson);
   return task;
 };
 
-const getQueuedTask = ({ id, type, output }: { id?: string; type?: string; output?: string }) =>
+const getQueuedTask = ({ id, type, output }: Omit<MockedTask, 'status'>) =>
   getTask({ id, status: TaskStatus.Queued, type, output });
 
-const getCompletedTask = ({ id, type, output }: { id?: string; type?: string; output?: string }) =>
+const getCompletedTask = ({ id, type, output }: Omit<MockedTask, 'status'>) =>
   getTask({ id, status: TaskStatus.Completed, type, output });
 
-const getFailedTask = ({ id, type, output }: { id?: string; type?: string; output?: string }) =>
+const getFailedTask = ({ id, type, output }: Omit<MockedTask, 'status'>) =>
   getTask({ id, status: TaskStatus.Failed, type, output });
 
 describe('taskRunner', () => {
-  let saveTasksSpy: jest.SpyInstance;
   let findOneTasksSpy: jest.SpyInstance;
   let managerTasksSpy: jest.SpyInstance;
   const taskRepository = AppDataSource.getRepository(Task);
@@ -59,12 +41,12 @@ describe('taskRunner', () => {
   const workflowRepository = AppDataSource.getRepository(Workflow);
 
   beforeEach(() => {
-    saveTasksSpy = jest.spyOn(taskRepository, 'save');
     findOneTasksSpy = jest.spyOn(taskRepository, 'findOne');
     managerTasksSpy = jest
       .spyOn(taskRepository.manager, 'getRepository')
       .mockImplementationOnce(() => resultRepository)
       .mockImplementationOnce(() => workflowRepository);
+    taskRepository.save = jest.fn();
     resultRepository.save = jest.fn();
     workflowRepository.save = jest.fn();
     workflowRepository.findOne = jest.fn();
@@ -74,7 +56,7 @@ describe('taskRunner', () => {
     jest.restoreAllMocks;
   });
 
-  describe('When the current task depends on a queued or failed task', () => {
+  describe('When the current task depends on a queued task', () => {
     it('Should not start to run the task', async () => {
       const currentTask = getQueuedTask({ id: '1' });
       const queuedDependantTask = getQueuedTask({ id: '2' });
@@ -84,7 +66,21 @@ describe('taskRunner', () => {
       const taskRunner = new TaskRunner(taskRepository);
       await taskRunner.run(currentTask);
 
-      expect(saveTasksSpy).not.toHaveBeenCalled();
+      expect(taskRepository.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('When the current task depends on a queued or failed task', () => {
+    it('Should not start to run the task', async () => {
+      const currentTask = getQueuedTask({ id: '1' });
+      const failedDependantTask = getFailedTask({ id: '2' });
+      currentTask.dependency = failedDependantTask;
+      findOneTasksSpy.mockResolvedValueOnce(failedDependantTask);
+
+      const taskRunner = new TaskRunner(taskRepository);
+      await taskRunner.run(currentTask);
+
+      expect(taskRepository.save).not.toHaveBeenCalled();
     });
   });
 
@@ -94,12 +90,11 @@ describe('taskRunner', () => {
       const completedDependantTask = getCompletedTask({ id: '2', output: 'completed-output' });
       currentTask.dependency = completedDependantTask;
       findOneTasksSpy.mockResolvedValueOnce(completedDependantTask);
-      saveTasksSpy.mockResolvedValueOnce(currentTask).mockResolvedValue({});
 
       const taskRunner = new TaskRunner(taskRepository);
       await taskRunner.run(currentTask);
 
-      expect(saveTasksSpy).toHaveBeenCalledWith(
+      expect(taskRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({ input: 'completed-output' })
       );
     });
