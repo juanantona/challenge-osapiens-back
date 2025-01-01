@@ -32,6 +32,7 @@ export class TaskRunner {
     const dependantTask = await this.getDependantTask(task);
     if (dependantTask) {
       if (this.isCompleted(dependantTask)) task.input = dependantTask.output;
+      else if (this.isFailed(dependantTask)) throw new Error('Dependant task failed');
       else return;
     }
 

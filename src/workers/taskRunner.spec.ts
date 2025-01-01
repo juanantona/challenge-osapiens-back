@@ -70,17 +70,16 @@ describe('taskRunner', () => {
     });
   });
 
-  describe('When the current task depends on a queued or failed task', () => {
-    it('Should not start to run the task', async () => {
+  describe('When the current task depends on failed task', () => {
+    it('Should throw an error and set the tasl as failed as well', async () => {
       const currentTask = getQueuedTask({ id: '1' });
       const failedDependantTask = getFailedTask({ id: '2' });
       currentTask.dependency = failedDependantTask;
       findOneTasksSpy.mockResolvedValueOnce(failedDependantTask);
 
       const taskRunner = new TaskRunner(taskRepository);
-      await taskRunner.run(currentTask);
 
-      expect(taskRepository.save).not.toHaveBeenCalled();
+      await expect(taskRunner.run(currentTask)).rejects.toThrow('Dependant task failed');
     });
   });
 
