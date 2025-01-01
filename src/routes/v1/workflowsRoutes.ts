@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { AppDataSource } from '../data-source';
-import { Workflow } from '../models/Workflow';
-import { WorkflowService } from '../domain/WorkflowService';
+import { AppDataSource } from '../../data-source';
+import { Workflow } from '../../models/Workflow';
+import { WorkflowService } from '../../domain/WorkflowService';
 
 const router = Router();
 const workflowRepository = AppDataSource.getRepository(Workflow);
