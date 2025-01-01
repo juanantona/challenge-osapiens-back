@@ -332,3 +332,144 @@ Implement an API endpoint to retrieve the final results of a completed workflow.
   - Document the API endpoints with request and response examples.
 
 ---
+
+
+### **CHALLENGE DOCUMENTATION:**
+
+### **Testing the new features:**
+
+For testing the new features please, edit the example workflow YAML file `example_workflow.yml` in the `workflows/` directory with the following content and then perfom a POST request to the `/analysis` endpoint:
+
+1. **Workflow with job to calculate polygon area:**
+```yml
+name: 'job_area_workflow'
+steps:
+  - taskType: 'area'
+    stepNumber: 1
+  - taskType: 'notification'
+    stepNumber: 2
+```
+
+2. **Workflow with job report:**
+```yml
+name: 'job_report_workflow'
+steps:
+  - taskType: 'area'
+    stepNumber: 1
+  - taskType: 'analysis'
+    stepNumber: 2
+  - taskType: 'report'
+    stepNumber: 3
+```
+
+3. **Workflow with dependencies:**
+```yml
+name: 'dependant_tasks_workflow'
+steps:
+  - taskType: 'area'
+    stepNumber: 1
+  - taskType: 'analysis'
+    stepNumber: 2
+    dependsOnStep: 1
+  - taskType: 'notification'
+    stepNumber: 3
+    dependsOnStep: 2
+  - taskType: 'report'
+    stepNumber: 4
+```
+
+Also tests are included with the following files:
+- `PolygonAreaJob.ts`
+- `ReportGenerationJob.ts`
+- `taskRunner.ts`
+- `WorkflowFactory.ts`
+
+They can be run using the following commands:
+
+```shell
+npm run test
+```
+
+### **New API endpoints**
+
+### Getting Workflow Status
+
+This enpoint retrieves the current status of a workflow.
+
+```plaintext
+GET /v1/workflows/:id/status
+```
+
+URL parameters:
+
+| Attribute         | Type     | Required | Description               |
+|-------------------|----------|----------|---------------------------|
+| `id`              | string   | Yes      | The id of the Workflow    |
+
+If successful, returns `200 OK` and the following response attributes:
+
+| Attribute                | Type     | Description                                          |
+|--------------------------|----------|------------------------------------------------------|
+| `workflowId`             | string   | The id of the Workflow                               |
+| `status`                 | string   | The current status of the workflow                   |
+| `completedTasks`         | number   | Number of completed tasks belonging to the workflow  |
+| `totalTasks`             | number   | Total number of tasks belonging to the workflow      |
+
+Example request:
+
+```shell
+curl --request GET \
+     --url  'https://api.osapiens.com/v1/workflows/f8ed1432-ef15-4663-a091-86ed96e3c71a/status' \
+     --header 'Content-Type: application/json'
+```
+
+Example response:
+
+```json
+{
+    "workflowId": "f8ed1432-ef15-4663-a091-86ed96e3c71a",
+    "status": "completed",
+    "completedTasks": 3,
+    "totalTasks": 3
+}
+```
+
+### Getting Workflow Results
+
+This enpoint retrieves the final results of a completed workflow.
+
+```plaintext
+GET /v1/workflows/:id/results
+```
+
+URL parameters:
+
+| Attribute         | Type     | Required | Description               |
+|-------------------|----------|----------|---------------------------|
+| `id`              | string   | Yes      | The id of the Workflow    |
+
+If successful, returns `200 OK` and the following response attributes:
+
+| Attribute                | Type     | Description                                          |
+|--------------------------|----------|------------------------------------------------------|
+| `workflowId`             | string   | The id of the Workflow                               |
+| `status`                 | string   | The current status of the workflow                   |
+| `finalResult`            | string   | Number of completed tasks belonging to the workflow  |
+
+Example request:
+
+```shell
+curl --request GET \
+     --url  'https://api.osapiens.com/v1/workflows/f8ed1432-ef15-4663-a091-86ed96e3c71a/results' \
+     --header 'Content-Type: application/json'
+```
+
+Example response:
+
+```json
+{
+    "workflowId": "f8ed1432-ef15-4663-a091-86ed96e3c71a",
+    "status": "completed",
+    "finalResult": "Resume of the workflow execution: [{\"taskId\":\"bd3db046-0c0b-4595-a010-67b01a43dce9\",\"type\":\"area\",\"output\":\"4621506484.056065\"},{\"taskId\":\"bacebff9-6162-445c-829c-63059c859eaf\",\"type\":\"analysis\",\"output\":\"\\\"Brazil\\\"\"},{\"taskId\":\"509dd1d4-bd5c-41b1-9064-a43c890c6ec5\",\"type\":\"report\",\"output\":\"{\\\"workflowId\\\":\\\"f8ed1432-ef15-4663-a091-86ed96e3c71a\\\",\\\"tasks\\\":[{\\\"taskId\\\":\\\"bd3db046-0c0b-4595-a010-67b01a43dce9\\\",\\\"type\\\":\\\"area\\\",\\\"output\\\":\\\"4621506484.056065\\\"},{\\\"taskId\\\":\\\"bacebff9-6162-445c-829c-63059c859eaf\\\",\\\"type\\\":\\\"analysis\\\",\\\"output\\\":\\\"\\\\\\\"Brazil\\\\\\\"\\\"}],\\\"finalReport\\\":\\\"Report for workflow f8ed1432-ef15-4663-a091-86ed96e3c71a: [{\\\\\\\"taskId\\\\\\\":\\\\\\\"bd3db046-0c0b-4595-a010-67b01a43dce9\\\\\\\",\\\\\\\"type\\\\\\\":\\\\\\\"area\\\\\\\",\\\\\\\"output\\\\\\\":\\\\\\\"4621506484.056065\\\\\\\"},{\\\\\\\"taskId\\\\\\\":\\\\\\\"bacebff9-6162-445c-829c-63059c859eaf\\\\\\\",\\\\\\\"type\\\\\\\":\\\\\\\"analysis\\\\\\\",\\\\\\\"output\\\\\\\":\\\\\\\"\\\\\\\\\\\\\\\"Brazil\\\\\\\\\\\\\\\"\\\\\\\"}]\\\"}\"}]"
+}
+```
