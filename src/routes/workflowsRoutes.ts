@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { AppDataSource } from '../data-source';
 import { Workflow } from '../models/Workflow';
-import { TaskStatus } from '../workers/taskRunner';
+import { WorkflowService } from '../domain/WorkflowService';
 
 const router = Router();
 const workflowRepository = AppDataSource.getRepository(Workflow);
@@ -10,23 +10,16 @@ router.get('/:id/status', async (req, res) => {
   const { id: workflowId } = req.params;
 
   try {
-    const workflow = await workflowRepository.findOne({
-      where: { workflowId: workflowId },
-      relations: ['tasks'],
-    });
+    const workflow = await WorkflowService.create(workflowId, workflowRepository);
 
     if (!workflow) {
       res.status(404).json({ message: 'Workflow not found' });
     } else {
-      const completedTasks = workflow.tasks.filter(
-        task => task.status === TaskStatus.Completed
-      ).length;
-      const totalTasks = workflow.tasks.length;
       res.status(200).json({
         workflowId,
         status: workflow.status,
-        completedTasks,
-        totalTasks,
+        completedTasks: workflow.getCompletedTasks().length,
+        totalTasks: workflow.tasks.length,
       });
     }
   } catch (error: any) {
@@ -39,16 +32,13 @@ router.get('/:id/results', async (req, res) => {
   const { id: workflowId } = req.params;
 
   try {
-    const workflow = await workflowRepository.findOne({
-      where: { workflowId: workflowId },
-      relations: ['tasks'],
-    });
+    const workflow = await WorkflowService.create(workflowId, workflowRepository);
 
     if (!workflow) {
       res.status(404).json({ message: 'Workflow not found' });
     } else {
-      const allCompleted = workflow.tasks.every(task => task.status === TaskStatus.Completed);
-      const anyFailed = workflow.tasks.some(task => task.status === TaskStatus.Failed);
+      const allCompleted = workflow.areAllTaskCompleted();
+      const anyFailed = workflow.isAnyTaskFailed();
       const { status, finalResult } = workflow;
       if (allCompleted || anyFailed) res.status(200).json({ workflowId, status, finalResult });
       else res.status(400).json({ message: 'Workflow is not yet completed' });
