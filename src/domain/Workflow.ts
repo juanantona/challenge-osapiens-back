@@ -1,30 +1,30 @@
 import { Repository } from 'typeorm';
-import { Workflow } from '../models/Workflow';
+import { Workflow as WorkflowModel } from '../models/Workflow';
 import { Task } from '../models/Task';
 import { TaskStatus } from '../workers/taskRunner';
 
-export class WorkflowService {
-  private readonly workflow: Workflow;
+export class Workflow {
+  private readonly workflow: WorkflowModel;
 
   private constructor(
     private readonly id: string,
-    private readonly workflowRepository: Repository<Workflow>,
-    workflow: Workflow
+    private readonly workflowRepository: Repository<WorkflowModel>,
+    workflow: WorkflowModel
   ) {
     this.workflow = workflow;
   }
 
   static async create(
     id: string,
-    workflowRepository: Repository<Workflow>
-  ): Promise<WorkflowService | null> {
+    workflowRepository: Repository<WorkflowModel>
+  ): Promise<Workflow | null> {
     const workflow = await workflowRepository.findOne({
       where: { workflowId: id },
       relations: ['tasks'],
     });
 
     if (!workflow) return null;
-    return new WorkflowService(id, workflowRepository, workflow);
+    return new Workflow(id, workflowRepository, workflow);
   }
 
   get tasks() {

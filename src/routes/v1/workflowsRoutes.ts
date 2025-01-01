@@ -1,16 +1,16 @@
 import { Router } from 'express';
 import { AppDataSource } from '../../data-source';
-import { Workflow } from '../../models/Workflow';
-import { WorkflowService } from '../../domain/WorkflowService';
+import { Workflow as WorkflowModel } from '../../models/Workflow';
+import { Workflow } from '../../domain/Workflow';
 
 const router = Router();
-const workflowRepository = AppDataSource.getRepository(Workflow);
+const workflowRepository = AppDataSource.getRepository(WorkflowModel);
 
 router.get('/:id/status', async (req, res) => {
   const { id: workflowId } = req.params;
 
   try {
-    const workflow = await WorkflowService.create(workflowId, workflowRepository);
+    const workflow = await Workflow.create(workflowId, workflowRepository);
 
     if (!workflow) {
       res.status(404).json({ message: 'Workflow not found' });
@@ -32,7 +32,7 @@ router.get('/:id/results', async (req, res) => {
   const { id: workflowId } = req.params;
 
   try {
-    const workflow = await WorkflowService.create(workflowId, workflowRepository);
+    const workflow = await Workflow.create(workflowId, workflowRepository);
 
     if (!workflow) {
       res.status(404).json({ message: 'Workflow not found' });
